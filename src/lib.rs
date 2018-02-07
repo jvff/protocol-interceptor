@@ -1,7 +1,10 @@
 extern crate bytes;
+#[macro_use]
 extern crate futures;
 extern crate tokio_io;
+extern crate tokio_proto;
 
+mod intercept_io;
 mod io_channel;
 mod io_interceptor;
 mod next_item;
