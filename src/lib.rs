@@ -1,7 +1,7 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+extern crate bytes;
+extern crate futures;
+extern crate tokio_io;
+
+mod io_interceptor;
+
+pub use io_interceptor::IoInterceptor;
