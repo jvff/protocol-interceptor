@@ -1,6 +1,4 @@
-use std::io;
 use std::io::Write;
-use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use futures::{Future, Stream};
@@ -11,23 +9,21 @@ use tokio_proto::pipeline::ServerProto;
 use super::intercept_io::InterceptIo;
 use super::possibly_intercepted_io::PossiblyInterceptedIo;
 
-pub struct ProtocolInterceptor<C, P, E> {
+pub struct ProtocolInterceptor<C, P> {
     channel_factory: Arc<Mutex<C>>,
     protocol: Arc<P>,
-    _error: PhantomData<E>,
 }
 
-impl<C, P, E> ProtocolInterceptor<C, P, E> {
+impl<C, P> ProtocolInterceptor<C, P> {
     pub fn new(channel_factory: C, protocol: P) -> Self {
         ProtocolInterceptor {
             channel_factory: Arc::new(Mutex::new(channel_factory)),
             protocol: Arc::new(protocol),
-            _error: PhantomData,
         }
     }
 }
 
-impl<C, P, T, I, O, E> ServerProto<T> for ProtocolInterceptor<C, P, E>
+impl<C, P, T, I, O> ServerProto<T> for ProtocolInterceptor<C, P>
 where
     C: 'static + Stream<Item = (I, O)>,
     P: ServerProto<PossiblyInterceptedIo<T, I, O>>,
@@ -35,13 +31,13 @@ where
     T: 'static + AsyncRead + AsyncWrite,
     I: 'static + Write,
     O: 'static + Write,
-    E: 'static + From<C::Error> + From<<P::BindTransport as Future>::Error>,
-    io::Error: From<E>,
+    P::Error: From<C::Error> + From<<P::BindTransport as Future>::Error>,
 {
     type Request = P::Request;
     type Response = P::Response;
+    type Error = P::Error;
     type Transport = P::Transport;
-    type BindTransport = Flatten<InterceptIo<C, P, T, E>>;
+    type BindTransport = Flatten<InterceptIo<C, P, T>>;
 
     fn bind_transport(&self, io: T) -> Self::BindTransport {
         let channel_factory = self.channel_factory.clone();

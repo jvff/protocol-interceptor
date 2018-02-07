@@ -1,5 +1,4 @@
 use std::io::Write;
-use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use futures::{Async, Future, Poll, Stream};
@@ -9,36 +8,34 @@ use tokio_proto::pipeline::ServerProto;
 use super::next_item::NextItem;
 use super::possibly_intercepted_io::PossiblyInterceptedIo;
 
-pub struct InterceptIo<C, P, T, E> {
+pub struct InterceptIo<C, P, T> {
     channel: NextItem<C>,
     protocol: Arc<P>,
     io: Option<T>,
-    _error: PhantomData<E>,
 }
 
-impl<C, P, T, E> InterceptIo<C, P, T, E> {
+impl<C, P, T> InterceptIo<C, P, T> {
     pub fn new(channel_factory: Arc<Mutex<C>>, protocol: Arc<P>, io: T) -> Self {
         InterceptIo {
             channel: NextItem::new(channel_factory),
             io: Some(io),
             protocol,
-            _error: PhantomData,
         }
     }
 }
 
-impl<C, P, T, E, I, O> Future for InterceptIo<C, P, T, E>
+impl<C, P, T, I, O> Future for InterceptIo<C, P, T>
 where
     C: Stream<Item = (I, O)>,
     P: ServerProto<PossiblyInterceptedIo<T, I, O>>,
     P::BindTransport: Future,
-    E: From<C::Error> + From<<P::BindTransport as Future>::Error>,
+    P::Error: From<C::Error> + From<<P::BindTransport as Future>::Error>,
     T: 'static + AsyncRead + AsyncWrite,
     I: 'static + Write,
     O: 'static + Write,
 {
     type Item = P::BindTransport;
-    type Error = E;
+    type Error = P::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let maybe_channel = try_ready!(self.channel.poll());
