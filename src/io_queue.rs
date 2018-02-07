@@ -25,11 +25,13 @@ impl IoQueue {
 
 impl Read for IoQueue {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        let mut bytes = Vec::with_capacity(buffer.len());
         let count = buffer.len().min(self.buffer.len());
 
-        for (byte, index) in self.buffer.drain(0..count).zip(0..count) {
-            buffer[index] = byte;
-        }
+        bytes.append(&mut self.buffer.drain(0..count).collect());
+        bytes.resize(buffer.len(), 0);
+
+        buffer.copy_from_slice(&bytes);
 
         Ok(count)
     }
