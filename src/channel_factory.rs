@@ -50,25 +50,12 @@ impl ChannelFactory {
         self.notify_read_task();
 
         self.write_channels.pop_front().unwrap_or_else(|| {
-            let (read_channel, write_channel) = self.new_channel();
+            let (read_channel, write_channel) = new_channel();
 
             self.read_channels.push_back(read_channel);
 
             write_channel
         })
-    }
-
-    fn new_channel(&mut self) -> (ReadChannel, WriteChannel) {
-        let request_queue = IoQueue::new();
-        let response_queue = IoQueue::new();
-
-        let (read_request, write_request) = request_queue.split();
-        let (read_response, write_response) = response_queue.split();
-
-        let read_channel = (read_request, read_response);
-        let write_channel = (write_request, write_response);
-
-        (read_channel, write_channel)
     }
 
     fn notify_read_task(&mut self) {
@@ -89,4 +76,17 @@ impl ChannelFactory {
 
         self.read_task = Some(task::current());
     }
+}
+
+pub(crate) fn new_channel() -> (ReadChannel, WriteChannel) {
+    let request_queue = IoQueue::new();
+    let response_queue = IoQueue::new();
+
+    let (read_request, write_request) = request_queue.split();
+    let (read_response, write_response) = response_queue.split();
+
+    let read_channel = (read_request, read_response);
+    let write_channel = (write_request, write_response);
+
+    (read_channel, write_channel)
 }
