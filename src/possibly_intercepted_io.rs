@@ -5,8 +5,7 @@ use futures::Poll;
 use tokio_io::{AsyncRead, AsyncWrite};
 use tokio_io::io::{ReadHalf, WriteHalf};
 
-use super::io_channel::IoChannel;
-use super::io_interceptor::IoInterceptor;
+use super::io::{IoChannel, IoInterceptor};
 
 pub enum PossiblyInterceptedIo<T, I, O>
 where
