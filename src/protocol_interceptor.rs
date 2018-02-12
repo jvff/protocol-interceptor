@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-use futures::{Future, Sink, Stream};
+use futures::{Future, IntoFuture, Stream};
 use futures::future::Flatten;
 use tokio_io::{AsyncRead, AsyncWrite};
 use tokio_proto::pipeline::ServerProto;
@@ -29,10 +29,6 @@ impl<C, P, T, I, O> ServerProto<T> for ProtocolInterceptor<C, P>
 where
     C: 'static + Stream<Item = (I, O)>,
     P: ServerProto<PossiblyInterceptedIo<T, I, O>>,
-    P::BindTransport: Future,
-    <P::BindTransport as Future>::Item:
-        Stream<Item = P::Request, Error = P::Error>
-            + Sink<SinkItem = P::Response, SinkError = P::Error>,
     T: 'static + AsyncRead + AsyncWrite,
     I: 'static + Write,
     O: 'static + Write,
@@ -40,11 +36,15 @@ where
     type Request = P::Request;
     type Response = P::Response;
     type Error =
-        InterceptError<C::Error, <P::BindTransport as Future>::Error, P::Error>;
+        InterceptError<
+            C::Error,
+            <P::BindTransport as IntoFuture>::Error,
+            P::Error,
+        >;
     type Transport = InterceptedTransport<
         C::Error,
-        <P::BindTransport as Future>::Error,
-        <P::BindTransport as Future>::Item,
+        <P::BindTransport as IntoFuture>::Error,
+        <P::BindTransport as IntoFuture>::Item,
     >;
     type BindTransport = Flatten<InterceptIo<C, P, T>>;
 

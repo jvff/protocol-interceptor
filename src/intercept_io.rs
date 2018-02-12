@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-use futures::{Async, Future, Poll, Stream};
+use futures::{Async, Future, IntoFuture, Poll, Stream};
 use tokio_io::{AsyncRead, AsyncWrite};
 use tokio_proto::pipeline::ServerProto;
 
@@ -34,14 +34,22 @@ impl<C, P, T, I, O> Future for InterceptIo<C, P, T>
 where
     C: Stream<Item = (I, O)>,
     P: ServerProto<PossiblyInterceptedIo<T, I, O>>,
-    P::BindTransport: Future,
     T: 'static + AsyncRead + AsyncWrite,
     I: 'static + Write,
     O: 'static + Write,
 {
-    type Item = BindInterceptedTransport<C::Error, P::BindTransport, P::Error>;
+    type Item =
+        BindInterceptedTransport<
+            C::Error,
+            <P::BindTransport as IntoFuture>::Future,
+            P::Error,
+        >;
     type Error =
-        InterceptError<C::Error, <P::BindTransport as Future>::Error, P::Error>;
+        InterceptError<
+            C::Error,
+            <P::BindTransport as IntoFuture>::Error,
+            P::Error,
+        >;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let io = self.io.take().expect("NextItem can't be polled twice");
@@ -62,8 +70,9 @@ where
             PossiblyInterceptedIo::dont_intercept(io)
         };
 
-        let future = self.protocol.bind_transport(possibly_intercepted_io);
+        let bind_transport =
+            self.protocol.bind_transport(possibly_intercepted_io);
 
-        Ok(Async::Ready(future.into()))
+        Ok(Async::Ready(bind_transport.into_future().into()))
     }
 }
